@@ -32,6 +32,7 @@ def upload_logs():
             if datetime.strptime(log_date, "%Y-%m-%d").date() == yesterday.date():
                 blob = storage_bucket.blob(f"dgg-logs/{log_date}.txt")
                 blob.upload_from_filename(file)
+                main_logger.info("Uploaded latest log")
                 return
     if not blob:
         main_logger.warning("Couldn't upload log file")
