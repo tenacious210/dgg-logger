@@ -1,79 +1,59 @@
 from google.cloud import storage
+import google.cloud.logging
 from dggbot import DGGChat, Message
-from logging.handlers import TimedRotatingFileHandler
+from datetime import datetime
+import asyncio
 import logging
-from time import tzname
-import sys
-from schedule import repeat, every, run_pending
-from datetime import datetime, timedelta
 import os
-from time import sleep
-from threading import Thread
+import sys
 
 dgg_client = DGGChat()
-storage_client = storage.Client()
-storage_bucket = storage_client.bucket("tenadev")
+current_date = "2000-12-31"
+cloud_sync = True
+
+logging.getLogger("websocket").setLevel(logging.CRITICAL)
+logging.root.disabled = True
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(logging.StreamHandler(sys.stdout))
+logger.propagate = False
+if cloud_sync:
+    logging_client = google.cloud.logging.Client()
+    logging_client.setup_logging()
 
 
 @dgg_client.event()
 def on_msg(msg: Message):
-    file_logger.info(f"{msg.nick}: {msg.data}")
+    global current_date
+    msg_datetime = datetime.utcfromtimestamp(float(msg.timestamp / 1000))
+    msg_date = msg_datetime.strftime("%Y-%m-%d")
+    log_time = msg_datetime.strftime("%Y-%m-%d %H:%M:%S")
+    log = f"[{log_time} UTC] {msg.nick}: {msg.data}"
+    with open(f"{msg_date}.txt", "a") as logfile:
+        logfile.write(f"{log}\n")
+    if msg_date != current_date and cloud_sync:
+        old_logfile = f"{current_date}.txt"
+        if os.path.exists(old_logfile):
+            asyncio.create_task(upload_logs(old_logfile))
+        else:
+            logger.info(f"Couldn't find {old_logfile}")
+        current_date = msg_date
 
 
-@repeat(every().day.at("00:01"))
-def upload_logs():
-    yesterday = datetime.now() - timedelta(days=1)
-    blob = None
-    for file in os.listdir():
-        if ".log" in file:
-            with open(file, "r") as log:
-                first_line = log.readline()
-            log_date = first_line[1 : first_line.find(" ")]
-            if datetime.strptime(log_date, "%Y-%m-%d").date() == yesterday.date():
-                blob = storage_bucket.blob(f"dgg-logs/{log_date}.txt")
-                blob.upload_from_filename(file)
-                main_logger.info("Uploaded latest log")
-                return
-    if not blob:
-        main_logger.warning("Couldn't upload log file")
+async def upload_logs(log_filename: str):
+    storage_client = storage.Client()
+    storage_bucket = storage_client.bucket("tenadev")
+    blob = storage_bucket.blob(f"dgg-logs/{log_filename}")
+    blob.upload_from_filename(log_filename)
+    os.remove(log_filename)
+    logger.info(f"Uploaded {log_filename}")
 
 
-def upload_logs_thread():
+def main():
     while True:
-        run_pending()
-        sleep(30)
-
-
-logging.getLogger("websocket").setLevel(logging.CRITICAL)
-logging.root.disabled = True
-
-log_format = f"[%(asctime)s {tzname[0]}] %(message)s"
-date_format = "%Y-%m-%d %H:%M:%S"
-log_formatter = logging.Formatter(log_format, datefmt=date_format)
-
-file_logger = logging.getLogger("dgg-file-logger")
-file_handler = TimedRotatingFileHandler(
-    filename="dgg-logs.log",
-    when="D",
-    interval=1,
-    backupCount=3650,
-    utc=True,
-)
-file_handler.setFormatter(log_formatter)
-file_logger.addHandler(file_handler)
-file_logger.setLevel(logging.INFO)
-file_logger.propagate = False
-
-main_logger = logging.getLogger(__name__)
-main_handler = logging.StreamHandler(sys.stdout)
-main_handler.setFormatter(log_formatter)
-main_logger.addHandler(main_handler)
-main_logger.setLevel(logging.INFO)
+        logger.info("Starting DGG logger")
+        dgg_client.run()
 
 
 if __name__ == "__main__":
-    upload_thread = Thread(target=upload_logs_thread)
-    upload_thread.start()
-    while True:
-        main_logger.info("Starting DGG client")
-        dgg_client.run()
+    main()
