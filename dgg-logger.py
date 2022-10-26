@@ -19,7 +19,7 @@ logger.setLevel(logging.INFO)
 
 
 class DGGLogger(DGGChat):
-    cloud_sync = False
+    cloud_sync = True
 
     def __init__(self):
         super().__init__()
