@@ -36,7 +36,7 @@ class DGGLogger(DGGChat):
         msg_date = msg_datetime.strftime("%Y-%m-%d")
         if not self.logfile == f"{msg_date}.txt":
             if self.cloud_sync:
-                Thread(target=self.upload_logs, args=[self.logfile.name]).start()
+                Thread(target=self.upload_logs, args=[self.logfile]).start()
             self.logfile = f"{msg_date}.txt"
         log_time = msg_datetime.strftime("%Y-%m-%d %H:%M:%S")
         log = f"[{log_time} UTC] {msg.nick}: {msg.data}"
