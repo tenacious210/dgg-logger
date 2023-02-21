@@ -1,4 +1,3 @@
 dgg-bot
-websocket-client
 google-cloud-storage
 google-cloud-logging
