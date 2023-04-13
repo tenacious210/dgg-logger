@@ -14,8 +14,8 @@ logger.setLevel(logging.DEBUG)
 
 chat = DGGChat()
 cloud_sync = True
+log_name = "2000-12-31.txt"
 
-logfile = "2000-12-31.txt"
 if cloud_sync:
     storage_client = google.cloud.storage.Client()
     storage_bucket = storage_client.bucket("tenadev")
@@ -35,16 +35,16 @@ def upload_logs(log_filename: str):
 
 @chat.event()
 def on_msg(msg: Message):
-    global logfile
+    global log_name
     msg_date = msg.timestamp.strftime("%Y-%m-%d")
-    if not logfile == f"{msg_date}.txt":
+    if not log_name == f"{msg_date}.txt":
         if cloud_sync:
-            Thread(target=upload_logs, args=[logfile]).start()
-        logfile = f"{msg_date}.txt"
+            Thread(target=upload_logs, args=[log_name]).start()
+        log_name = f"{msg_date}.txt"
     log_time = msg.timestamp.strftime("%Y-%m-%d %H:%M:%S")
     log = f"[{log_time} UTC] {msg.nick}: {msg.data}"
-    with open(logfile, "a") as logfile:
-        logfile.write(f"{log}\n")
+    with open(log_name, "a") as log_txt:
+        log_txt.write(f"{log}\n")
 
 
 if __name__ == "__main__":
