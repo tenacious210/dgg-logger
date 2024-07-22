@@ -1,3 +1,2 @@
-dgg-bot
-google-cloud-storage
-google-cloud-logging
+dgg-bot==1.7.0
+google-cloud-storage==2.17.0
