@@ -1,6 +1,7 @@
 from threading import Thread
 import logging
 import os
+import sys
 
 from dggbot import DGGChat, Message
 import google.cloud.storage
@@ -8,10 +9,10 @@ import google.cloud.storage
 logs_dir = "logs"
 os.makedirs(logs_dir, exist_ok=True)
 
-logging.basicConfig(level=os.environ.get("LOGLEVEL", "INFO"))
-logging.getLogger("websocket").setLevel(logging.CRITICAL)
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+sys.tracebacklimit = 0
+logging.basicConfig(level=logging.INFO)
+logging.getLogger("websocket").disabled = True
+logging.getLogger("dgg-bot").disabled = True
 
 chat = DGGChat()
 # Set cloud_sync to False to run locally.
@@ -26,12 +27,12 @@ if cloud_sync:
 
 def upload_logs(log_filename: str):
     if not os.path.exists(log_filename):
-        logger.info(f"Couldn't find {log_filename} for upload")
+        logging.info(f"Couldn't find {log_filename} for upload")
         return
     blob = storage_bucket.blob(f"dgg-logs/{os.path.basename(log_filename)}")
     blob.upload_from_filename(log_filename)
     os.remove(log_filename)
-    logger.info(f"Uploaded {log_filename}")
+    logging.info(f"Uploaded {log_filename}")
 
 
 @chat.event()
